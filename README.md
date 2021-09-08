@@ -1,5 +1,8 @@
 # template-operator
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/onmetal/template-operator)](https://goreportcard.com/report/github.com/onmetal/template-operator)
+[![Go Reference](https://pkg.go.dev/badge/github.com/onmetal/template-operator.svg)](https://pkg.go.dev/github.com/onmetal/template-operator)
+
 The template operator is an operator to create Kubernetes objects from other objects *at runtime*.
 
 The need for this operator came up when we created certificates and their corresponding secrets via `cert-manager` and
