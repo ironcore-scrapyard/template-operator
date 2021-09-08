@@ -1,0 +1,31 @@
+apiVersion: template.onmetal.de/v1alpha1
+kind: Template
+metadata:
+  name: template-sample
+spec:
+  groupKinds:
+    - group: ""
+      kind: Secret
+  commonLabels:
+    managed-by: template-sample
+  selector:
+    matchLabels:
+      managed-by: template-sample
+  prune: true
+  sources:
+    - name: token
+      object:
+        apiVersion: v1
+        kind: Secret
+        namespace: default
+        name: default-token-rtxld
+  data:
+    inline: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        namespace: default
+        name: kubeconfig
+      type: Opaque
+      data:
+        kubeconfig: {{ .Values.token.data.token }}

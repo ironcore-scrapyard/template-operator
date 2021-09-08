@@ -1,0 +1,16 @@
+domain: onmetal.de
+layout:
+- go.kubebuilder.io/v3
+projectName: template-operator
+repo: github.com/onmetal/template-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: onmetal.de
+  group: template
+  kind: Template
+  path: github.com/onmetal/template-operator/api/v1alpha1
+  version: v1alpha1
+version: "3"
