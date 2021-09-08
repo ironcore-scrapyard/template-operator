@@ -11,7 +11,20 @@ secret).
 
 ## Installation
 
-TBD
+### Helm
+
+Helm can be used to install the `template-operator` into your Kubernetes cluster. The Helm chart repository can be added via:
+
+```shell
+helm repo add template-operator https://onmetal.github.io/template-operator/
+helm repo update
+```
+
+To install the `template-operator` Helm chart run:
+
+```shell
+helm install my-templ-op template-operator/template-operator
+```
 
 ## Usage
 
