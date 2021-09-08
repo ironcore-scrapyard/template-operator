@@ -11,7 +11,7 @@ require (
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/gomega v1.16.0
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	k8s.io/api v0.22.1
 	k8s.io/apimachinery v0.22.1
