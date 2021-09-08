@@ -16,7 +16,7 @@ updates:
     reviewers:
       - "onmetal/onmetal-api-maintainers"
   - package-ecosystem: "docker"
-    directory: "/docs"
+    directory: "/"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
