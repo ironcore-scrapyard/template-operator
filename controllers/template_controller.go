@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,27 +44,104 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sync"
 	gotemplate "text/template"
+	"time"
 )
 
-type gvkUsageMap struct {
-	gvkToIDs map[schema.GroupVersionKind]map[client.ObjectKey]struct{}
-	idToGVKs map[client.ObjectKey]map[schema.GroupVersionKind]struct{}
+type empty struct{}
+
+type idSet map[client.ObjectKey]empty
+
+func newIDSet(keys ...client.ObjectKey) idSet {
+	s := make(idSet)
+	s.Insert(keys...)
+	return s
 }
 
-func (m *gvkUsageMap) apply(id client.ObjectKey, gvks map[schema.GroupVersionKind]struct{}) (added, deleted []schema.GroupVersionKind) {
+func (s idSet) Insert(keys ...client.ObjectKey) {
+	for _, key := range keys {
+		s[key] = empty{}
+	}
+}
+
+func (s idSet) Delete(items ...client.ObjectKey) {
+	for _, item := range items {
+		delete(s, item)
+	}
+}
+
+func (s idSet) Has(key client.ObjectKey) bool {
+	_, ok := s[key]
+	return ok
+}
+
+func (s idSet) Difference(other idSet) idSet {
+	res := newIDSet()
+	for item := range s {
+		if !other.Has(item) {
+			res.Insert(item)
+		}
+	}
+	return res
+}
+
+type gvkSet map[schema.GroupVersionKind]empty
+
+func newGVKSet(items ...schema.GroupVersionKind) gvkSet {
+	s := make(gvkSet)
+	s.Insert(items...)
+	return s
+}
+
+func (s gvkSet) Insert(items ...schema.GroupVersionKind) {
+	for _, item := range items {
+		s[item] = empty{}
+	}
+}
+
+func (s gvkSet) Delete(items ...schema.GroupVersionKind) {
+	for _, item := range items {
+		delete(s, item)
+	}
+}
+
+func (s gvkSet) Has(item schema.GroupVersionKind) bool {
+	_, ok := s[item]
+	return ok
+}
+
+type gvkUsageMap struct {
+	gvkToIDs map[schema.GroupVersionKind]idSet
+	idToGVKs map[client.ObjectKey]gvkSet
+}
+
+func (m *gvkUsageMap) ids() idSet {
+	res := newIDSet()
+	for id := range m.idToGVKs {
+		res.Insert(id)
+	}
+	return res
+}
+
+func (m *gvkUsageMap) hasID(id client.ObjectKey) bool {
+	_, ok := m.idToGVKs[id]
+	return ok
+}
+
+func (m *gvkUsageMap) apply(id client.ObjectKey, gvks gvkSet) (added, deleted []schema.GroupVersionKind) {
 	// Determine if there are any gvks that are not used by any template anymore.
 	for _, oldGVKs := range m.idToGVKs {
 		for oldGVK := range oldGVKs {
 			// If the oldGVK is present among the new ones it means that it is still in use.
-			if _, ok := gvks[oldGVK]; ok {
+			if gvks.Has(oldGVK) {
 				continue
 			}
 
 			gvkIDs := m.gvkToIDs[oldGVK]
-			delete(gvkIDs, id)
+			gvkIDs.Delete(id)
 			if len(gvkIDs) == 0 {
 				delete(m.gvkToIDs, oldGVK)
 				deleted = append(deleted, oldGVK)
@@ -74,7 +152,7 @@ func (m *gvkUsageMap) apply(id client.ObjectKey, gvks map[schema.GroupVersionKin
 	// After determining old / unneeded gvks, we can now check what wasn't present yet and add it.
 	idGVKs := m.idToGVKs[id]
 	for gvk := range gvks {
-		if _, ok := idGVKs[gvk]; ok {
+		if idGVKs.Has(gvk) {
 			// The gvk was already in use, nothing new was added.
 			continue
 		}
@@ -82,9 +160,9 @@ func (m *gvkUsageMap) apply(id client.ObjectKey, gvks map[schema.GroupVersionKin
 		gvkIDs := m.gvkToIDs[gvk]
 		if gvkIDs == nil {
 			added = append(added, gvk)
-			gvkIDs = make(map[client.ObjectKey]struct{})
+			gvkIDs = newIDSet()
 		}
-		gvkIDs[id] = struct{}{}
+		gvkIDs.Insert(id)
 		m.gvkToIDs[gvk] = gvkIDs
 	}
 	return
@@ -92,8 +170,8 @@ func (m *gvkUsageMap) apply(id client.ObjectKey, gvks map[schema.GroupVersionKin
 
 func mkGVKUsageMap() *gvkUsageMap {
 	return &gvkUsageMap{
-		gvkToIDs: make(map[schema.GroupVersionKind]map[client.ObjectKey]struct{}),
-		idToGVKs: make(map[client.ObjectKey]map[schema.GroupVersionKind]struct{}),
+		gvkToIDs: make(map[schema.GroupVersionKind]idSet),
+		idToGVKs: make(map[client.ObjectKey]gvkSet),
 	}
 }
 
@@ -103,8 +181,9 @@ type TemplateReconciler struct {
 
 	FieldOwner string
 	client.Client
-	Scheme     *runtime.Scheme
-	RESTMapper meta.RESTMapper
+	Scheme           *runtime.Scheme
+	RESTMapper       meta.RESTMapper
+	PruneWatchPeriod time.Duration
 
 	parentGVKUsage *gvkUsageMap
 	parents        *source.Dynamic
@@ -174,6 +253,43 @@ func (r *TemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return r.reconcile(ctx, logger, template)
 }
 
+func (r *TemplateReconciler) pruneWatches(ctx context.Context) error {
+	wait.UntilWithContext(ctx, func(ctx context.Context) {
+		logger := log.FromContext(ctx).WithName("prune-watches")
+
+		templates := &templatev1alpha1.TemplateList{}
+		if err := r.List(ctx, templates); err != nil {
+			logger.Error(err, "Could not list templates")
+			return
+		}
+
+		r.mu.Lock()
+		defer r.mu.Unlock()
+
+		ids := newIDSet()
+		for _, template := range templates.Items {
+			ids.Insert(client.ObjectKeyFromObject(&template))
+		}
+
+		unusedParentIDs := r.parentGVKUsage.ids().Difference(ids)
+		for unusedParentID := range unusedParentIDs {
+			if err := r.deleteParentWatches(unusedParentID); err != nil {
+				logger.Error(err, "Error pruning parent id", "parentID", unusedParentID)
+				return
+			}
+		}
+
+		unusedChildIDs := r.childGVKUsage.ids().Difference(ids)
+		for unusedChildID := range unusedChildIDs {
+			if err := r.deleteChildWatches(unusedChildID); err != nil {
+				logger.Error(err, "Error pruning child id", "parentID", unusedChildID)
+				return
+			}
+		}
+	}, r.PruneWatchPeriod)
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *TemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
@@ -197,6 +313,13 @@ func (r *TemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return fmt.Errorf("error creating child dynamic source: %w", err)
 	}
 	r.childGVKUsage = mkGVKUsageMap()
+
+	if r.PruneWatchPeriod == 0 {
+		r.PruneWatchPeriod = 20 * time.Minute
+	}
+	if err := mgr.Add(manager.RunnableFunc(r.pruneWatches)); err != nil {
+		return fmt.Errorf("could not setup watch-pruning")
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&templatev1alpha1.Template{}).
@@ -499,8 +622,8 @@ func applyWatches(src *source.Dynamic, added, removed []schema.GroupVersionKind)
 	return nil
 }
 
-func (r *TemplateReconciler) determineUsedParentGVKs(template *templatev1alpha1.Template) (map[schema.GroupVersionKind]struct{}, error) {
-	usedGVKs := make(map[schema.GroupVersionKind]struct{})
+func (r *TemplateReconciler) determineUsedParentGVKs(template *templatev1alpha1.Template) (gvkSet, error) {
+	usedGVKs := newGVKSet()
 	for _, src := range template.Spec.Sources {
 		switch {
 		case src.Object != nil:
@@ -509,7 +632,7 @@ func (r *TemplateReconciler) determineUsedParentGVKs(template *templatev1alpha1.
 				return nil, fmt.Errorf("could not determine gvk for source %v: %w", src.Object, err)
 			}
 
-			usedGVKs[gvk] = struct{}{}
+			usedGVKs.Insert(gvk)
 		}
 	}
 
@@ -539,19 +662,19 @@ func (r *TemplateReconciler) deleteParentWatches(key client.ObjectKey) error {
 	return nil
 }
 
-func (r *TemplateReconciler) determineUsedChildGVKs(template *templatev1alpha1.Template) (map[schema.GroupVersionKind]struct{}, error) {
-	usedGVKs := make(map[schema.GroupVersionKind]struct{})
+func (r *TemplateReconciler) determineUsedChildGVKs(template *templatev1alpha1.Template) (gvkSet, error) {
+	usedGVKs := newGVKSet()
 	for _, gk := range template.Spec.GroupKinds {
 		mapping, err := r.RESTMapper.RESTMapping(schema.GroupKind{Group: gk.Group, Kind: gk.Kind})
 		if err != nil {
 			return nil, fmt.Errorf("could not determine rest mapping for %v: %w", gk, err)
 		}
 
-		usedGVKs[schema.GroupVersionKind{
+		usedGVKs.Insert(schema.GroupVersionKind{
 			Group:   gk.Group,
 			Kind:    gk.Kind,
 			Version: mapping.GroupVersionKind.Version,
-		}] = struct{}{}
+		})
 	}
 	return usedGVKs, nil
 }
