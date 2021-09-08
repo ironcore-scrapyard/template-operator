@@ -92,11 +92,11 @@ var _ = Describe("TemplateController", func() {
 					Inline: fmt.Sprintf(`apiVersion: v1
 kind: Secret
 metadata:
-  namespace: %s
+  namespace: {{ .Template.metadata.namespace }}
   name: %s
 data:
   foo: "{{ .Values.config.data.bar | b64enc }}"
-`, namespace, secretName),
+`, secretName),
 				},
 				Prune: true,
 			},
