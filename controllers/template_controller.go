@@ -126,11 +126,6 @@ func (m *gvkUsageMap) ids() idSet {
 	return res
 }
 
-func (m *gvkUsageMap) hasID(id client.ObjectKey) bool {
-	_, ok := m.idToGVKs[id]
-	return ok
-}
-
 func (m *gvkUsageMap) apply(id client.ObjectKey, gvks gvkSet) (added, deleted []schema.GroupVersionKind) {
 	// Determine if there are any gvks that are not used by any template anymore.
 	for _, oldGVKs := range m.idToGVKs {
@@ -548,7 +543,7 @@ func (r *TemplateReconciler) pruneObjects(ctx context.Context, logger logr.Logge
 				managedGK := metav1.GroupKind{Group: managedGVK.Group, Kind: managedGVK.Kind}
 				if gk == managedGK &&
 					actualObj.GetNamespace() == managedObj.GetNamespace() &&
-					actualObj.GetName() == actualObj.GetName() {
+					actualObj.GetName() == managedObj.GetName() {
 					continue PruneLoop
 				}
 			}
