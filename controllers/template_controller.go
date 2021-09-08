@@ -39,12 +39,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sync"
 	gotemplate "text/template"
@@ -353,7 +355,7 @@ func (r *TemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				requests = append(requests, reconcile.Request{NamespacedName: key})
 			}
 			return requests
-		})).
+		}), builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(r.children, &handler.EnqueueRequestForOwner{
 			OwnerType: &templatev1alpha1.Template{},
 		}).
@@ -369,7 +371,7 @@ func (r *TemplateReconciler) delete(ctx context.Context, logger logr.Logger, tem
 	return ctrl.Result{}, nil
 }
 
-func (r *TemplateReconciler) resolveValues(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (map[string]interface{}, error) {
+func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (map[string]interface{}, error) {
 	values := make(map[string]interface{})
 	for _, src := range template.Spec.Sources {
 		if _, ok := values[src.Name]; ok {
@@ -725,6 +727,23 @@ func (r *TemplateReconciler) deleteWatches(key client.ObjectKey) error {
 	return nil
 }
 
+func (r *TemplateReconciler) resolveTemplateData(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (interface{}, error) {
+	values, err := r.resolveSources(ctx, logger, template)
+	if err != nil {
+		return nil, err
+	}
+
+	u := &unstructured.Unstructured{}
+	if err := r.Scheme.Convert(template, u, nil); err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"Values":   values,
+		"Template": u.Object,
+	}, nil
+}
+
 func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (ctrl.Result, error) {
 	logger.V(1).Info("Setting up watches.")
 	if err := r.applyWatches(template); err != nil {
@@ -739,22 +758,22 @@ func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, 
 		return ctrl.Result{}, fmt.Errorf("could not watch objects: %w", err)
 	}
 
-	logger.V(1).Info("Resolving sources values.")
-	sourcesValues, err := r.resolveValues(ctx, logger, template)
+	logger.V(1).Info("Resolving template data.")
+	data, err := r.resolveTemplateData(ctx, logger, template)
 	if err != nil {
 		if err := r.updateStatus(ctx, template,
 			nil,
 			corev1.ConditionFalse,
-			"CannotResolveValues",
-			fmt.Sprintf("Resolving the values resulted in an error: %v", err),
+			"CannotResolveData",
+			fmt.Sprintf("Resolving the template data resulted in an error: %v", err),
 		); err != nil {
 			logger.Error(err, "Error updating status.")
 		}
-		return ctrl.Result{}, fmt.Errorf("could not resolve sources values: %w", err)
+		return ctrl.Result{}, fmt.Errorf("could not resolve template data: %w", err)
 	}
 
 	logger.V(1).Info("Executing template.")
-	rd, err := r.executeTemplate(logger, template, map[string]interface{}{"Values": sourcesValues})
+	rd, err := r.executeTemplate(logger, template, data)
 	if err != nil {
 		if err := r.updateStatus(ctx, template,
 			nil,
@@ -826,7 +845,7 @@ func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, 
 	if err := r.updateStatus(ctx, template,
 		mkManagedObjRefs(objs),
 		corev1.ConditionTrue,
-		"SuccessfullyApplied",
+		"Successful",
 		"All objects have been successfully applied.",
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("error updating template status: %w", err)
