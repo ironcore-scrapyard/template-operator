@@ -80,10 +80,9 @@ var _ = Describe("TemplateController", func() {
 				Sources: []templatev1alpha1.TemplateSource{
 					{
 						Name: "config",
-						Object: &templatev1alpha1.ObjectReference{
+						Object: &templatev1alpha1.LocalObjectReference{
 							APIVersion: "v1",
 							Kind:       "ConfigMap",
-							Namespace:  namespace,
 							Name:       configMapName,
 						},
 					},

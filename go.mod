@@ -13,6 +13,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
+	github.com/spf13/cobra v1.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	k8s.io/api v0.22.1
 	k8s.io/apiextensions-apiserver v0.22.1
