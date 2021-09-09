@@ -6,6 +6,7 @@ rbac:
       - ""
       resources:
       - secrets
+      - configmaps
 
 image:
   repository: ghcr.io/onmetal/template-operator
