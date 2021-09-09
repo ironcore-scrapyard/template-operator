@@ -167,6 +167,9 @@ spec:
                       - kind
                       - name
                       type: object
+                    value:
+                      description: Value is a literal yaml value to use as source.
+                      x-kubernetes-preserve-unknown-fields: true
                   required:
                   - name
                   type: object

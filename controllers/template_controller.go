@@ -446,7 +446,7 @@ func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Log
 
 			values[src.Name] = u.Object
 		default:
-			return nil, fmt.Errorf("invalid source definition %q", src.Name)
+			values[src.Name] = src.Value
 		}
 	}
 

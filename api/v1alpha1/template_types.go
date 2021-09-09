@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,6 +48,9 @@ type TemplateSource struct {
 	Name string `json:"name"`
 	// ObjectReference is a reference to an object to serve as source.
 	Object *ObjectReference `json:"object,omitempty"`
+	// Value is a literal yaml value to use as source.
+	// +optional
+	Value apiextensionsv1.JSON `json:"value,omitempty"`
 }
 
 // ObjectReference references an object in a specific api version.
