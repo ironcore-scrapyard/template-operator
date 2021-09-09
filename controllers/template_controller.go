@@ -191,28 +191,27 @@ type TemplateReconciler struct {
 	children      *source.Dynamic
 }
 
-func mkObjRef(obj client.Object) templatev1alpha1.ObjectReference {
+func mkLocalObjRef(obj client.Object) templatev1alpha1.LocalObjectReference {
 	gvk := obj.GetObjectKind().GroupVersionKind()
-	return templatev1alpha1.ObjectReference{
+	return templatev1alpha1.LocalObjectReference{
 		APIVersion: gvk.GroupVersion().String(),
 		Kind:       gvk.Kind,
-		Namespace:  obj.GetNamespace(),
 		Name:       obj.GetName(),
 	}
 }
 
-func mkManagedObjRefs(objs []unstructured.Unstructured) []templatev1alpha1.ObjectReference {
+func mkManagedLocalObjRefs(objs []unstructured.Unstructured) []templatev1alpha1.LocalObjectReference {
 	if len(objs) == 0 {
 		return nil
 	}
-	res := make([]templatev1alpha1.ObjectReference, 0, len(objs))
+	res := make([]templatev1alpha1.LocalObjectReference, 0, len(objs))
 	for _, obj := range objs {
-		res = append(res, mkObjRef(&obj))
+		res = append(res, mkLocalObjRef(&obj))
 	}
 	return res
 }
 
-func gvkFromObjRef(ref templatev1alpha1.ObjectReference) (schema.GroupVersionKind, error) {
+func gvkFromLocalObjRef(ref templatev1alpha1.LocalObjectReference) (schema.GroupVersionKind, error) {
 	gv, err := schema.ParseGroupVersion(ref.APIVersion)
 	if err != nil {
 		return schema.GroupVersionKind{}, nil
@@ -392,13 +391,13 @@ func (r *TemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			for _, template := range templates.Items {
 				for _, src := range template.Spec.Sources {
 					if src.Object != nil {
-						srcGVK, err := gvkFromObjRef(*src.Object)
+						srcGVK, err := gvkFromLocalObjRef(*src.Object)
 						if err != nil {
 							logger.Error(err, "Object has invalid api version.")
 							continue
 						}
 
-						if gvk == srcGVK && src.Object.Namespace == object.GetNamespace() && src.Object.Name == object.GetName() {
+						if gvk == srcGVK && template.Namespace == object.GetNamespace() && src.Object.Name == object.GetName() {
 							keySet[client.ObjectKeyFromObject(&template)] = struct{}{}
 						}
 					}
@@ -438,8 +437,8 @@ func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Log
 			u := &unstructured.Unstructured{}
 			u.SetAPIVersion(src.Object.APIVersion)
 			u.SetKind(src.Object.Kind)
-			key := client.ObjectKey{Namespace: src.Object.Namespace, Name: src.Object.Name}
-			logger.V(2).Info("Resolving object reference.", "ref", mkObjRef(u))
+			key := client.ObjectKey{Namespace: template.Namespace, Name: src.Object.Name}
+			logger.V(2).Info("Resolving object reference.", "ref", mkLocalObjRef(u))
 			if err := r.Get(ctx, key, u); err != nil {
 				return nil, fmt.Errorf("could not fetch object with key %s: %w", key, err)
 			}
@@ -453,7 +452,7 @@ func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Log
 	return values, nil
 }
 
-func (r *TemplateReconciler) resolveTemplateDefinition(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (string, error) {
+func (r *TemplateReconciler) resolveTemplateDefinition(ctx context.Context, template *templatev1alpha1.Template) (string, error) {
 	dataSpec := template.Spec.Data
 	switch {
 	case dataSpec.Inline != "":
@@ -481,14 +480,14 @@ func (r *TemplateReconciler) resolveTemplateDefinition(ctx context.Context, logg
 	}
 }
 
-func (r *TemplateReconciler) executeTemplate(logger logr.Logger, template *templatev1alpha1.Template, templateSpec string, data interface{}) (io.Reader, error) {
+func (r *TemplateReconciler) executeTemplate(logger logr.Logger, template *templatev1alpha1.Template, templateDefinition string, data interface{}) (io.Reader, error) {
 	logger.V(1).Info("Creating / Parsing template")
 	tmpl := gotemplate.New(fmt.Sprintf("%s/%s", template.Namespace, template.Name))
 	fMap := funcMap(tmpl)
 	tmpl.Funcs(fMap)
 
 	var err error
-	tmpl, err = tmpl.Parse(template.Spec.Data.Inline)
+	tmpl, err = tmpl.Parse(templateDefinition)
 	if err != nil {
 		return nil, fmt.Errorf("invalid template: %w", err)
 	}
@@ -589,7 +588,7 @@ func (r *TemplateReconciler) prepareObjects(template *templatev1alpha1.Template,
 
 func (r *TemplateReconciler) applyObjects(ctx context.Context, logger logr.Logger, objs []unstructured.Unstructured) error {
 	for _, obj := range objs {
-		logger.V(2).Info("Applying object", "ref", mkObjRef(&obj))
+		logger.V(2).Info("Applying object", "ref", mkLocalObjRef(&obj))
 		if err := r.Patch(ctx, &obj, client.Apply, client.FieldOwner(r.FieldOwner)); err != nil {
 			return fmt.Errorf("error applying object: %w", err)
 		}
@@ -659,7 +658,7 @@ func findCondition(conditions []templatev1alpha1.TemplateCondition, typ template
 func (r *TemplateReconciler) updateStatus(
 	ctx context.Context,
 	template *templatev1alpha1.Template,
-	managedResources []templatev1alpha1.ObjectReference,
+	managedResources []templatev1alpha1.LocalObjectReference,
 	status corev1.ConditionStatus,
 	reason, message string,
 ) error {
@@ -712,7 +711,7 @@ func (r *TemplateReconciler) determineUsedParentGVKs(template *templatev1alpha1.
 	for _, src := range template.Spec.Sources {
 		switch {
 		case src.Object != nil:
-			gvk, err := gvkFromObjRef(*src.Object)
+			gvk, err := gvkFromLocalObjRef(*src.Object)
 			if err != nil {
 				return nil, fmt.Errorf("could not determine gvk for source %v: %w", src.Object, err)
 			}
@@ -861,7 +860,7 @@ func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, 
 	}
 
 	logger.V(1).Info("Resolving template definition.")
-	templateDefinition, err := r.resolveTemplateDefinition(ctx, logger, template)
+	templateDefinition, err := r.resolveTemplateDefinition(ctx, template)
 	if err != nil {
 		if err := r.updateStatus(ctx, template,
 			nil,
@@ -945,7 +944,7 @@ func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, 
 
 	logger.V(1).Info("Writing success status.")
 	if err := r.updateStatus(ctx, template,
-		mkManagedObjRefs(objs),
+		mkManagedLocalObjRefs(objs),
 		corev1.ConditionTrue,
 		"Successful",
 		"All objects have been successfully applied.",

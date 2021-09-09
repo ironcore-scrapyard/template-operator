@@ -158,10 +158,6 @@ spec:
                         name:
                           description: Name is the name of the target object.
                           type: string
-                        namespace:
-                          description: Namespace is the namespace the target object
-                            lives in.
-                          type: string
                       required:
                       - apiVersion
                       - kind
@@ -230,7 +226,7 @@ spec:
                 description: ManagedResources are resources that are managed by this
                   template.
                 items:
-                  description: ObjectReference references an object in a specific
+                  description: LocalObjectReference references an object in a specific
                     api version.
                   properties:
                     apiVersion:
@@ -242,10 +238,6 @@ spec:
                       type: string
                     name:
                       description: Name is the name of the target object.
-                      type: string
-                    namespace:
-                      description: Namespace is the namespace the target object lives
-                        in.
                       type: string
                   required:
                   - apiVersion

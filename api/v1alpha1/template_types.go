@@ -47,20 +47,18 @@ type TemplateSource struct {
 	// Name is the name the source shall be registered with in the values.
 	Name string `json:"name"`
 	// ObjectReference is a reference to an object to serve as source.
-	Object *ObjectReference `json:"object,omitempty"`
+	Object *LocalObjectReference `json:"object,omitempty"`
 	// Value is a literal yaml value to use as source.
 	// +optional
 	Value apiextensionsv1.JSON `json:"value,omitempty"`
 }
 
-// ObjectReference references an object in a specific api version.
-type ObjectReference struct {
+// LocalObjectReference references an object in a specific api version.
+type LocalObjectReference struct {
 	// APIVersion is the api version of the target object to use.
 	APIVersion string `json:"apiVersion"`
 	// Kind is the kind of the target object.
 	Kind string `json:"kind"`
-	// Namespace is the namespace the target object lives in.
-	Namespace string `json:"namespace,omitempty"`
 	// Name is the name of the target object.
 	Name string `json:"name"`
 }
@@ -95,7 +93,7 @@ type TemplateStatus struct {
 	// information of a Template.
 	Conditions []TemplateCondition `json:"conditions,omitempty"`
 	// ManagedResources are resources that are managed by this template.
-	ManagedResources []ObjectReference `json:"managedResources,omitempty"`
+	ManagedResources []LocalObjectReference `json:"managedResources,omitempty"`
 }
 
 // TemplateConditionType is a type of a TemplateCondition.
