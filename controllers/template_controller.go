@@ -453,7 +453,35 @@ func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Log
 	return values, nil
 }
 
-func (r *TemplateReconciler) executeTemplate(logger logr.Logger, template *templatev1alpha1.Template, data interface{}) (io.Reader, error) {
+func (r *TemplateReconciler) resolveTemplateDefinition(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (string, error) {
+	dataSpec := template.Spec.Data
+	switch {
+	case dataSpec.Inline != "":
+		return dataSpec.Inline, nil
+	case dataSpec.ConfigMapRef != nil:
+		configMap := &corev1.ConfigMap{}
+		key := client.ObjectKey{Namespace: template.Namespace, Name: dataSpec.ConfigMapRef.Name}
+		if err := r.Get(ctx, key, configMap); err != nil {
+			return "", fmt.Errorf("error getting config map %s: %w", key, err)
+		}
+
+		dataKey := dataSpec.ConfigMapRef.Key
+		if dataKey == "" {
+			dataKey = templatev1alpha1.DefaultConfigMapTemplateKey
+		}
+
+		data, ok := configMap.Data[dataKey]
+		if !ok || data == "" {
+			return "", fmt.Errorf("config map %s has no data at %s", key, dataKey)
+		}
+
+		return data, nil
+	default:
+		return "", fmt.Errorf("invalid data spec: no valid source supplied")
+	}
+}
+
+func (r *TemplateReconciler) executeTemplate(logger logr.Logger, template *templatev1alpha1.Template, templateSpec string, data interface{}) (io.Reader, error) {
 	logger.V(1).Info("Creating / Parsing template")
 	tmpl := gotemplate.New(fmt.Sprintf("%s/%s", template.Namespace, template.Name))
 	fMap := funcMap(tmpl)
@@ -832,8 +860,22 @@ func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, 
 		return ctrl.Result{}, fmt.Errorf("could not resolve template data: %w", err)
 	}
 
+	logger.V(1).Info("Resolving template definition.")
+	templateDefinition, err := r.resolveTemplateDefinition(ctx, logger, template)
+	if err != nil {
+		if err := r.updateStatus(ctx, template,
+			nil,
+			corev1.ConditionFalse,
+			"CannotResolveContent",
+			fmt.Sprintf("Resolving the template definition failed: %v", err),
+		); err != nil {
+			logger.Error(err, "Error updating status.")
+		}
+		return ctrl.Result{}, fmt.Errorf("error resolving template definition: %w", err)
+	}
+
 	logger.V(1).Info("Executing template.")
-	rd, err := r.executeTemplate(logger, template, data)
+	rd, err := r.executeTemplate(logger, template, templateDefinition, data)
 	if err != nil {
 		if err := r.updateStatus(ctx, template,
 			nil,

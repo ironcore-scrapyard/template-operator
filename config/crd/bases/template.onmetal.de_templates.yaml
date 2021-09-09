@@ -44,13 +44,33 @@ spec:
               commonLabels:
                 additionalProperties:
                   type: string
+                description: CommonLabels are common labels that should be applied
+                  for all resulting resources of this template.
                 type: object
               data:
+                description: TemplateData holds the definition of the template.
                 properties:
+                  configMapRef:
+                    description: ConfigMapRef is the reference to a config map containing
+                      the template. If key is not specified, it defaults to DefaultConfigMapTemplateKey.
+                    properties:
+                      key:
+                        description: The key of the entry in the ConfigMap resource's
+                          `data` field to be used. Some instances of this field may
+                          be defaulted, in others it may be required.
+                        type: string
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
+                        type: string
+                    type: object
                   inline:
+                    description: Inline is an inline template definition.
                     type: string
                 type: object
               groupKinds:
+                description: GroupKinds are metav1.GroupKinds that are produced by
+                  this template.
                 items:
                   description: GroupKind specifies a Group and a Kind, but does not
                     force a version.  This is useful for identifying concepts during
@@ -66,12 +86,12 @@ spec:
                   type: object
                 type: array
               prune:
+                description: Prune indicates whether to prune unused resources of
+                  a template.
                 type: boolean
               selector:
-                description: A label selector is a label query over a set of resources.
-                  The result of matchLabels and matchExpressions are ANDed. An empty
-                  label selector matches all objects. A null label selector matches
-                  no objects.
+                description: Selector is a metav1.LabelSelector to select resources
+                  produced by this template.
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.
@@ -115,19 +135,32 @@ spec:
                     type: object
                 type: object
               sources:
+                description: Sources is a list of TemplateSource to draw template
+                  values from
                 items:
+                  description: TemplateSource is a source for the values of a template.
                   properties:
                     name:
+                      description: Name is the name the source shall be registered
+                        with in the values.
                       type: string
                     object:
+                      description: ObjectReference is a reference to an object to
+                        serve as source.
                       properties:
                         apiVersion:
+                          description: APIVersion is the api version of the target
+                            object to use.
                           type: string
                         kind:
+                          description: Kind is the kind of the target object.
                           type: string
                         name:
+                          description: Name is the name of the target object.
                           type: string
                         namespace:
+                          description: Namespace is the namespace the target object
+                            lives in.
                           type: string
                       required:
                       - apiVersion
@@ -145,24 +178,40 @@ spec:
             description: TemplateStatus defines the observed state of Template
             properties:
               conditions:
+                description: Conditions is a list of TemplateCondition referring to
+                  individual state information of a Template.
                 items:
+                  description: TemplateCondition is a status information of an aspect
+                    of a Template.
                   properties:
                     lastTransitionTime:
+                      description: LastTransitionTime is the last time a condition
+                        transitioned between two statuses.
                       format: date-time
                       type: string
                     lastUpdateTime:
+                      description: LastUpdateTime is the last time a condition has
+                        been updated.
                       format: date-time
                       type: string
                     message:
+                      description: Message is a human-readable detailed explanation
+                        of the condition reason.
                       type: string
                     observedGeneration:
+                      description: ObservedGeneration is the observed generation for
+                        which a condition is reported.
                       format: int64
                       type: integer
                     reason:
+                      description: Reason is a machine- and human-readable short explanation
+                        of the condition.
                       type: string
                     status:
+                      description: Status reports the status of the condition.
                       type: string
                     type:
+                      description: Type is the TemplateConditionType of this condition.
                       type: string
                   required:
                   - lastTransitionTime
@@ -175,15 +224,25 @@ spec:
                   type: object
                 type: array
               managedResources:
+                description: ManagedResources are resources that are managed by this
+                  template.
                 items:
+                  description: ObjectReference references an object in a specific
+                    api version.
                   properties:
                     apiVersion:
+                      description: APIVersion is the api version of the target object
+                        to use.
                       type: string
                     kind:
+                      description: Kind is the kind of the target object.
                       type: string
                     name:
+                      description: Name is the name of the target object.
                       type: string
                     namespace:
+                      description: Namespace is the namespace the target object lives
+                        in.
                       type: string
                   required:
                   - apiVersion
