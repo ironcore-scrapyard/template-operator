@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Masterminds/sprig"
+	yaml2 "github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	templatev1alpha1 "github.com/onmetal/template-operator/api/v1alpha1"
 	"github.com/onmetal/template-operator/pkg/source"
@@ -48,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strings"
 	"sync"
 	gotemplate "text/template"
 	"time"
@@ -219,8 +221,61 @@ func gvkFromObjRef(ref templatev1alpha1.ObjectReference) (schema.GroupVersionKin
 	return gv.WithKind(ref.Kind), nil
 }
 
-func funcMap() gotemplate.FuncMap {
+// recursion is the maximum allowed number of recursion inside a template.
+const recursionMaxNums = 1000
+
+// toYAML takes an interface, marshals it to yaml, and returns a string. It will
+// always return a string, even on marshal error (empty string).
+//
+// This is designed to be called from a template.
+func toYAML(v interface{}) string {
+	data, err := yaml2.Marshal(v)
+	if err != nil {
+		// Swallow errors inside of a template.
+		return ""
+	}
+	return strings.TrimSuffix(string(data), "\n")
+}
+
+// fromYAML converts a YAML document into a map[string]interface{}.
+//
+// This is not a general-purpose YAML parser, and will not parse all valid
+// YAML documents. Additionally, because its intended use is within templates
+// it tolerates errors. It will insert the returned error message string into
+// m["Error"] in the returned map.
+func fromYAML(str string) map[string]interface{} {
+	m := map[string]interface{}{}
+
+	if err := yaml2.Unmarshal([]byte(str), &m); err != nil {
+		m["Error"] = err.Error()
+	}
+	return m
+}
+
+func include(t *gotemplate.Template) func(name string, data interface{}) (string, error) {
+	includedNames := make(map[string]int)
+	return func(name string, data interface{}) (string, error) {
+		var buf strings.Builder
+		if v, ok := includedNames[name]; ok {
+			if v > recursionMaxNums {
+				return "", fmt.Errorf("unable to execute template: %w",
+					fmt.Errorf("rendering template has a nested reference name: %s", name))
+			}
+			includedNames[name]++
+		} else {
+			includedNames[name] = 1
+		}
+		err := t.ExecuteTemplate(&buf, name, data)
+		includedNames[name]--
+		return buf.String(), err
+	}
+}
+
+func funcMap(t *gotemplate.Template) gotemplate.FuncMap {
 	f := sprig.TxtFuncMap()
+	f["include"] = include(t)
+	f["fromYaml"] = fromYAML
+	f["toYaml"] = toYAML
 	delete(f, "env")
 	delete(f, "expandenv")
 	return f
@@ -400,7 +455,12 @@ func (r *TemplateReconciler) resolveSources(ctx context.Context, logger logr.Log
 
 func (r *TemplateReconciler) executeTemplate(logger logr.Logger, template *templatev1alpha1.Template, data interface{}) (io.Reader, error) {
 	logger.V(1).Info("Creating / Parsing template")
-	tmpl, err := gotemplate.New(fmt.Sprintf("%s/%s", template.Namespace, template.Name)).Funcs(funcMap()).Parse(string(template.Spec.Data.Inline))
+	tmpl := gotemplate.New(fmt.Sprintf("%s/%s", template.Namespace, template.Name))
+	fMap := funcMap(tmpl)
+	tmpl.Funcs(fMap)
+
+	var err error
+	tmpl, err = tmpl.Parse(template.Spec.Data.Inline)
 	if err != nil {
 		return nil, fmt.Errorf("invalid template: %w", err)
 	}
