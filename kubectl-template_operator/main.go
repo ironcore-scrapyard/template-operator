@@ -166,6 +166,9 @@ func RunRender(ctx context.Context, namespace, name, filename string) error {
 	}
 
 	tmpl, err := getOrReadTemplate(ctx, c, namespace, name, filename)
+	if err != nil {
+		return fmt.Errorf("could not obtain template: %w", err)
+	}
 
 	objs, err := template.NewEngine(c, scheme).Render(ctx, tmpl)
 	if err != nil {

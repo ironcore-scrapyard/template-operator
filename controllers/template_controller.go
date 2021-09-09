@@ -587,6 +587,18 @@ func (r *TemplateReconciler) deleteWatches(key client.ObjectKey) error {
 }
 
 func (r *TemplateReconciler) reconcile(ctx context.Context, logger logr.Logger, template *templatev1alpha1.Template) (ctrl.Result, error) {
+	if err := r.applyWatches(template); err != nil {
+		if err := r.updateStatus(ctx, template,
+			nil,
+			corev1.ConditionUnknown,
+			"CannotApplyWatches",
+			fmt.Sprintf("Applying watches resulted in an error: %v", err),
+		); err != nil {
+			logger.Error(err, "Error updating status.")
+		}
+		return ctrl.Result{}, fmt.Errorf("error applying watches: %w", err)
+	}
+
 	objs, err := r.engine.Render(ctx, template)
 	if err != nil {
 		if err := r.updateStatus(ctx, template,
