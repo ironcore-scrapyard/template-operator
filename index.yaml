@@ -3,6 +3,22 @@ entries:
   template-operator:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2021-09-09T11:48:13.03214963Z"
+    description: A Helm chart for the template operator
+    digest: 42d2827596916faf807f19db4a20f919f644947b6d870b9de42fcd133767259b
+    home: https://github.com/onmetal/template-operator
+    maintainers:
+    - name: adracus
+    - name: afritzler
+    name: template-operator
+    sources:
+    - https://github.com/onmetal/template-operator
+    type: application
+    urls:
+    - https://github.com/onmetal/template-operator/releases/download/template-operator-0.1.1/template-operator-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2021-09-08T15:29:24.305378827Z"
     description: A Helm chart for the template operator
     digest: 65b577ed82125c717deaa1e4453d8accb026760503bce6f466c75aae7345aff4
@@ -17,4 +33,4 @@ entries:
     urls:
     - https://github.com/onmetal/template-operator/releases/download/template-operator-0.1.0/template-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2021-09-08T15:29:24.305386228Z"
+generated: "2021-09-09T11:48:13.03216563Z"
