@@ -13,19 +13,20 @@ spec:
       managed-by: template-sample
   prune: true
   sources:
-  #    - name: token
-  #      object:
-  #        apiVersion: v1
-  #        kind: Secret
-  #        namespace: default
-  #        name: default-token-rtxld
+    - name: secretName
+      value: my-secret
+  #  - name: token
+  #    object:
+  #      apiVersion: v1
+  #      kind: Secret
+  #      name: default-token-rtxld
   data:
     inline: |-
       apiVersion: v1
       kind: Secret
       metadata:
         namespace: {{ .Template.metadata.namespace }}
-        name: my-secret
+        name: {{ .Values.secretName }}
       type: Opaque
       data:
         kubeconfig: {{ .Template.metadata.name | b64enc }}

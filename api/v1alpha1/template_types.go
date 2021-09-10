@@ -50,7 +50,7 @@ type TemplateSource struct {
 	Object *LocalObjectReference `json:"object,omitempty"`
 	// Value is a literal yaml value to use as source.
 	// +optional
-	Value apiextensionsv1.JSON `json:"value,omitempty"`
+	Value *apiextensionsv1.JSON `json:"value,omitempty"`
 }
 
 // LocalObjectReference references an object in a specific api version.

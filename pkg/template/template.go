@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -179,7 +180,13 @@ func (e *Engine) resolveSources(ctx context.Context, logger logr.Logger, templat
 
 			values[src.Name] = u.Object
 		default:
-			values[src.Name] = src.Value
+			var v interface{}
+			if src.Value != nil {
+				if err := json.Unmarshal(src.Value.Raw, &v); err != nil {
+					return nil, fmt.Errorf("error unmarshaling raw value %s: %w", src.Name, err)
+				}
+			}
+			values[src.Name] = v
 		}
 	}
 
