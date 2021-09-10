@@ -20,6 +20,7 @@ spec:
       labels:
         {{- include "template-operator.selectorLabels" . | nindent 8 }}
     spec:
+      terminationGracePeriodSeconds: 10
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -38,13 +39,13 @@ spec:
               path: /readyz
               port: 8081
             initialDelaySeconds: 15
-            periodSeconds: 20
+            periodSeconds: 60
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 15
+            periodSeconds: 60
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

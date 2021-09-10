@@ -10,8 +10,8 @@ rbac:
 
 image:
   repository: ghcr.io/onmetal/template-operator
-  pullPolicy: IfNotPresent
   tag: latest
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""
