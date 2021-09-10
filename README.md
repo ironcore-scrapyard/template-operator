@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/onmetal/template-operator)](https://goreportcard.com/report/github.com/onmetal/template-operator)
 [![Go Reference](https://pkg.go.dev/badge/github.com/onmetal/template-operator.svg)](https://pkg.go.dev/github.com/onmetal/template-operator)
+[![Build and Publish Docker Image](https://github.com/onmetal/template-operator/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/onmetal/template-operator/actions/workflows/publish-docker.yml)
 
 The template operator is an operator to create Kubernetes objects from other objects *at runtime*.
 
@@ -13,7 +14,8 @@ secret).
 
 ### Helm
 
-Helm can be used to install the `template-operator` into your Kubernetes cluster. The Helm chart repository can be added via:
+Helm can be used to install the `template-operator` into your Kubernetes cluster. The Helm chart repository can be added
+via:
 
 ```shell
 helm repo add template-operator https://onmetal.github.io/template-operator/
