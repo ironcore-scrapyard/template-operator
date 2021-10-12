@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
-	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/spf13/cobra v1.2.1
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
