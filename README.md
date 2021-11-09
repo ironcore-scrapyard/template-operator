@@ -3,6 +3,10 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/onmetal/template-operator)](https://goreportcard.com/report/github.com/onmetal/template-operator)
 [![Go Reference](https://pkg.go.dev/badge/github.com/onmetal/template-operator.svg)](https://pkg.go.dev/github.com/onmetal/template-operator)
 [![Build and Publish Docker Image](https://github.com/onmetal/template-operator/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/onmetal/template-operator/actions/workflows/publish-docker.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
+[![GitHub License](https://img.shields.io/static/v1?label=License&message=Apache-2.0&color=blue&style=flat-square)](LICENSE)
+
+## Overview
 
 The template operator is an operator to create Kubernetes objects from other objects *at runtime*.
 
@@ -10,7 +14,7 @@ The need for this operator came up when we created certificates and their corres
 wanted to use the generated certificate inside a kubeconfig that then should be passed into a pod (via Kubernetes
 secret).
 
-## Installation
+## Installation, Usage and Development
 
 ### Helm
 
@@ -96,3 +100,11 @@ type: Opaque
 data:
   foo: YmFy
 ```
+
+## Contributing
+
+We'd love to get feedback from you. Please report bugs, suggestions or post questions by opening a GitHub issue.
+
+## License
+
+[Apache-2.0](LICENSE)
