@@ -12,7 +12,7 @@ require (
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.18.0
 	github.com/spf13/cobra v1.3.0
 	k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver v0.23.1
