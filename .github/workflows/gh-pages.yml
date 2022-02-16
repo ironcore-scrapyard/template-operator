@@ -30,6 +30,6 @@ jobs:
       # Publish helm charts in gh-pages branch
       - name: Run chart-releaser
         if: ${{ github.event_name == 'push' }}
-        uses: helm/chart-releaser-action@v1.2.1
+        uses: helm/chart-releaser-action@v1.3.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
