@@ -22,11 +22,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+
+	"strings"
+	gotemplate "text/template"
+
 	"github.com/Masterminds/sprig"
 	yaml2 "github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	templatev1alpha1 "github.com/onmetal/template-operator/api/v1alpha1"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,8 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
-	gotemplate "text/template"
 )
 
 type gkSet map[metav1.GroupKind]struct{}

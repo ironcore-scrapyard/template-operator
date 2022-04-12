@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/go-logr/logr"
 	templatev1alpha1 "github.com/onmetal/template-operator/api/v1alpha1"
 	"github.com/onmetal/template-operator/pkg/source"
@@ -40,8 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sync"
-	"time"
 )
 
 type empty struct{}
