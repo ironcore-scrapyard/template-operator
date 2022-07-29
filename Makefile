@@ -50,7 +50,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 lint: ## Run golangci-lint against code.
-	golangci-lint run --timeout 2m
+	golangci-lint run ./...
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 test: manifests generate fmt vet ## Run tests.
@@ -108,7 +108,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
