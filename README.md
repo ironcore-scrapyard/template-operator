@@ -14,23 +14,27 @@ The need for this operator came up when we created certificates and their corres
 wanted to use the generated certificate inside a kubeconfig that then should be passed into a pod (via Kubernetes
 secret).
 
-## Installation, Usage and Development
+### Installation
 
-### Helm
+The project also comes with a well-defined Makefile. The CRDs can be deployed using
 
-Helm can be used to install the `template-operator` into your Kubernetes cluster. The Helm chart repository can be added
-via:
-
-```shell
-helm repo add template-operator https://onmetal.github.io/template-operator/
-helm repo update
+```bash
+make install
 ```
 
-To install the `template-operator` Helm chart run:
+To run the controllers locally, just run
 
-```shell
-helm install my-templ-op template-operator/template-operator
+```bash
+make run
 ```
+
+To deploy the controllers into the currently selected (determined by your current kubeconfig) cluster, just run
+
+```bash
+make deploy
+```
+
+This will apply the [default kustomization)[config/default] with correct RBAC permissions.
 
 ## Usage
 
