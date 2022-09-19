@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v1.2.3
-	github.com/onsi/ginkgo/v2 v2.1.6
+	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.20.2
 	github.com/spf13/cobra v1.4.0
 	k8s.io/api v0.24.2
